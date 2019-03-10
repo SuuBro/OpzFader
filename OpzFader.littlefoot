@@ -14,7 +14,6 @@ int level6;
 int level7;
 int level8;
 
-
 int page;
 
 void initialise()
@@ -30,7 +29,6 @@ void initialise()
     level8 = -1000;
 }
 
-
 int ColorNow(float offset)
 {    
     float angle = map(float(getMillisecondCounter()*100000), 0.0, 2147483647.0, 0.0, 360.0) - offset;
@@ -43,7 +41,6 @@ int ColorNow(float offset)
     int angle_int = int(angle);
     
     return RGB2Color(Sine((angle_int+120)%360), Sine(angle_int), Sine((angle_int+240)%360));
-    
 }
 
 void paintFader(float colourOffset,int x, int y, int height)
@@ -78,12 +75,12 @@ bool isLevelActive(int level, int page, int displayPage)
 
 void repaint()
 {    
-	clearDisplay();
+    clearDisplay();
 	
-	int displayLevel1 = -1000;
-	int displayLevel2 = -1000;
-	int displayLevel3 = -1000;
-	int displayLevel4 = -1000;
+    int displayLevel1 = -1000;
+    int displayLevel2 = -1000;
+    int displayLevel3 = -1000;
+    int displayLevel4 = -1000;
 	
     float pageColorOffset = page * 60.0;
       
@@ -104,10 +101,10 @@ void repaint()
     paintFader(25.0+pageColorOffset, 8,  14-displayLevel3, displayLevel3);
     paintFader(10.0+pageColorOffset, 12, 14-displayLevel4, displayLevel4);
 	
-	int activeColor = 0xFF1EFF0C;
-	int inactiveColor = RGB2Color(30,30,30);
+    int activeColor = 0xFF1EFF0C;
+    int inactiveColor = RGB2Color(30,30,30);
 	
-	// First page selector
+    // First page selector
     if(page == 1) fillRect(activeColor,   0, 0, 3, 1);
     if(page == 2) fillRect(inactiveColor, 0, 0, 3, 1);
     
@@ -126,15 +123,13 @@ float touchstart_y;
 void touchStart (int index, float x, float y, float z, float vz)
 {
     touchstart_y = convertPositionToPixel(y);
-	handleFaderChange(x, y, z);
+    handleFaderChange(x, y, z);
 }
-
 
 void touchMove (int index, float x, float y, float z, float vz)
 {
     handleFaderChange(x, y, z);
 }
-
 
 void touchEnd (int index, float x, float y, float z, float vz)
 {
@@ -165,7 +160,6 @@ void handleFaderChange(float x, float y, float z)
     { 
         return; 
     }
-
     
     if(page==1) 
     {
@@ -218,7 +212,6 @@ int round(float num)
     return int(num < 0 ? (num - 0.5) : (num + 0.5));   
 }
 
-
 void handleMIDI (int b0, int b1, int b2)
 {
     if(b0 == 248) return;
@@ -238,7 +231,6 @@ int RGB2Color(int r, int g, int b)
 {
     return (256*256*r) + (256*g) + (b);
 }
-
 
 int Sine(int i)
 {
