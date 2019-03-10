@@ -1,0 +1,699 @@
+
+int level1;
+int level2;
+int level3;
+int level4;
+int level5;
+int level6;
+int level7;
+int level8;
+
+
+int page;
+
+void initialise()
+{
+    page = 1;
+    level1 = -1000;
+    level2 = -1000;
+    level3 = -1000;
+    level4 = -1000;
+    level5 = -1000;
+    level6 = -1000;
+    level7 = -1000;
+    level8 = -1000;
+}
+
+
+int ColorNow(float offset)
+{    
+    float angle = map(float(getMillisecondCounter()*100000), 0.0, 2147483647.0, 0.0, 360.0) - offset;
+    
+    while(angle < 0)
+    {
+        angle += 360;
+    }
+    
+    int angle_int = int(angle);
+    
+    return RGB2Color(Sine((angle_int+120)%360), Sine(angle_int), Sine((angle_int+240)%360));
+    
+}
+
+void paintFader(float colourOffset,int x, int y, int height)
+{
+    const int width = 3;
+    
+    if(height > -10 && height <= 0) // Zero volume fader display
+    {
+        for(int j = 0; j < width; ++j )
+        {
+            fillPixel(RGB2Color(50,50,50), x+j, 14);    
+        }
+    }
+    
+    for(int i = 0; i < height; i++)
+    {
+        int rowColor = ColorNow(colourOffset-float(i*5.0));
+        
+        for(int j = 0; j < width; ++j )
+        {
+            fillPixel(rowColor, x+j, y+i);    
+        }        
+    }
+}
+
+
+bool isLevelActive(int level, int page, int displayPage)
+{
+     return level > -5 && page == displayPage;
+}
+    
+
+void repaint()
+{    
+	clearDisplay();
+	
+	int displayLevel1 = -1000;
+	int displayLevel2 = -1000;
+	int displayLevel3 = -1000;
+	int displayLevel4 = -1000;
+	
+    float pageColorOffset = page * 60.0;
+      
+    if(isLevelActive(level1, page, 1)) { displayLevel1 = convertFromMidiRange(level1); }
+    if(isLevelActive(level5, page, 2)) { displayLevel1 = convertFromMidiRange(level5); }
+    
+    if(isLevelActive(level2, page, 1)) { displayLevel2 = convertFromMidiRange(level2); }
+    if(isLevelActive(level6, page, 2)) { displayLevel2 = convertFromMidiRange(level6); }
+    
+    if(isLevelActive(level3, page, 1)) { displayLevel3 = convertFromMidiRange(level3); }
+    if(isLevelActive(level7, page, 2)) { displayLevel3 = convertFromMidiRange(level7); }
+    
+    if(isLevelActive(level4, page, 1)) { displayLevel4 = convertFromMidiRange(level4); }
+    if(isLevelActive(level8, page, 2)) { displayLevel4 = convertFromMidiRange(level8); }
+    
+    paintFader(55.0+pageColorOffset, 0,  14-displayLevel1, displayLevel1);
+    paintFader(40.0+pageColorOffset, 4,  14-displayLevel2, displayLevel2);
+    paintFader(25.0+pageColorOffset, 8,  14-displayLevel3, displayLevel3);
+    paintFader(10.0+pageColorOffset, 12, 14-displayLevel4, displayLevel4);
+	
+	int activeColor = 0xFF1EFF0C;
+	int inactiveColor = RGB2Color(30,30,30);
+	
+	// First page selector
+    if(page == 1) fillRect(activeColor,   0, 0, 3, 1);
+    if(page == 2) fillRect(inactiveColor, 0, 0, 3, 1);
+    
+    // Second page selector
+    if(page == 1) fillRect(inactiveColor,  4, 0, 3, 1);
+    if(page == 2) fillRect(activeColor,    4, 0, 3, 1);
+}
+
+int convertFromMidiRange(int level) 
+{ 
+    if(level == 0){ return 0; }
+    return round(map (float(level), 0.0, 127.0, 0.5, 12.45)); 
+}
+
+float touchstart_y;
+void touchStart (int index, float x, float y, float z, float vz)
+{
+    touchstart_y = convertPositionToPixel(y);
+	handleFaderChange(x, y, z);
+}
+
+
+void touchMove (int index, float x, float y, float z, float vz)
+{
+    handleFaderChange(x, y, z);
+}
+
+
+void touchEnd (int index, float x, float y, float z, float vz)
+{
+    handlePageChange(x, y);
+}
+
+void handlePageChange(float x, float y)
+{
+    float x_flt = convertPositionToPixel(x);
+    float y_flt = convertPositionToPixel(y);
+       
+    if(isPageButtonPress(y_flt) && isPageButtonPress(touchstart_y))
+    {
+        if     (x_flt < 4.0)  { page = 1; }
+        else if(x_flt < 8.0)  { page = 2; }  
+        else if(x_flt < 12.0) { /*page = 3;*/ }  
+        else                  { /*page = 4;*/ }
+    }
+}
+
+void handleFaderChange(float x, float y, float z)
+{   
+    float x_flt = convertPositionToPixel(x);
+    float y_flt = convertPositionToPixel(y);    
+    float level = convertToMidiRange(max(0.0, 15-y_flt));
+    
+    if(isPageButtonPress(y_flt)) 
+    { 
+        return; 
+    }
+
+    
+    if(page==1) 
+    {
+        if(x_flt < 3.95)       { sendMidi(1, level); } 
+        else if(x_flt < 7.95)  { sendMidi(2, level); } 
+        else if(x_flt < 11.95) { sendMidi(3, level); } 
+        else if(x_flt > 12.05) { sendMidi(4, level); } 
+    }
+    if(page==2) 
+    {
+        if(x_flt < 3.95)       { sendMidi(5, level); } 
+        else if(x_flt < 7.95)  { sendMidi(6, level); } 
+        else if(x_flt < 11.95) { sendMidi(7, level); } 
+        else if(x_flt > 12.05) { sendMidi(8, level); } 
+    }
+}
+
+void sendMidi(int channel, float level_flt)
+{
+    int level = round(level_flt);
+    
+    if(channel==1 && level1 != level) {level1 = level; sendMIDI(176, 16, level);} 
+    if(channel==2 && level2 != level) {level2 = level; sendMIDI(177, 16, level);} 
+    if(channel==3 && level3 != level) {level3 = level; sendMIDI(178, 16, level);} 
+    if(channel==4 && level4 != level) {level4 = level; sendMIDI(179, 16, level);} 
+    if(channel==5 && level5 != level) {level5 = level; sendMIDI(180, 16, level);} 
+    if(channel==6 && level6 != level) {level6 = level; sendMIDI(181, 16, level);} 
+    if(channel==7 && level7 != level) {level7 = level; sendMIDI(182, 16, level);} 
+    if(channel==8 && level8 != level) {level8 = level; sendMIDI(183, 16, level);} 
+}
+
+bool isPageButtonPress(float y_flt)
+{
+    return (y_flt < 2);
+}
+
+float convertPositionToPixel(float pos)
+{ 
+    return map (pos, 0.07, 1.95, 0.0, 16.0); 
+}
+
+float convertToMidiRange(float pos) 
+{ 
+    if(pos < 0.1){return 0.0;}
+    return clamp(0.0, 127.0, map (pos, 0.0, 13.0, -0.5, 130.0)); 
+}
+
+int round(float num)
+{
+    return int(num < 0 ? (num - 0.5) : (num + 0.5));   
+}
+
+
+void handleMIDI (int b0, int b1, int b2)
+{
+    if(b0 == 248) return;
+    
+    if(b0 == 176 && b1 == 16){ level1 = b2; }
+    if(b0 == 177 && b1 == 16){ level2 = b2; }
+    if(b0 == 178 && b1 == 16){ level3 = b2; }
+    if(b0 == 179 && b1 == 16){ level4 = b2; }
+    
+    if(b0 == 180 && b1 == 16){ level5 = b2; }
+    if(b0 == 181 && b1 == 16){ level6 = b2; }
+    if(b0 == 182 && b1 == 16){ level7 = b2; }
+    if(b0 == 183 && b1 == 16){ level8 = b2; }
+}
+
+int RGB2Color(int r, int g, int b)
+{
+    return (256*256*r) + (256*g) + (b);
+}
+
+
+int Sine(int i)
+{
+	if(i<=4){return 0;}
+	if(i<=5){return 1;}
+	if(i<=6){return 1;}
+	if(i<=7){return 2;}
+	if(i<=8){return 2;}
+	if(i<=9){return 3;}
+	if(i<=10){return 4;}
+	if(i<=11){return 5;}
+	if(i<=12){return 6;}
+	if(i<=13){return 7;}
+	if(i<=14){return 8;}
+	if(i<=15){return 9;}
+	if(i<=16){return 11;}
+	if(i<=17){return 12;}
+	if(i<=18){return 13;}
+	if(i<=19){return 15;}
+	if(i<=20){return 17;}
+	if(i<=21){return 18;}
+	if(i<=22){return 20;}
+	if(i<=23){return 22;}
+	if(i<=24){return 24;}
+	if(i<=25){return 26;}
+	if(i<=26){return 28;}
+	if(i<=27){return 30;}
+	if(i<=28){return 32;}
+	if(i<=29){return 35;}
+	if(i<=30){return 37;}
+	if(i<=31){return 39;}
+	if(i<=32){return 42;}
+	if(i<=33){return 44;}
+	if(i<=34){return 47;}
+	if(i<=35){return 49;}
+	if(i<=36){return 52;}
+	if(i<=37){return 55;}
+	if(i<=38){return 58;}
+	if(i<=39){return 60;}
+	if(i<=40){return 63;}
+	if(i<=41){return 66;}
+	if(i<=42){return 69;}
+	if(i<=43){return 72;}
+	if(i<=44){return 75;}
+	if(i<=45){return 78;}
+	if(i<=46){return 81;}
+	if(i<=47){return 85;}
+	if(i<=48){return 88;}
+	if(i<=49){return 91;}
+	if(i<=50){return 94;}
+	if(i<=51){return 97;}
+	if(i<=52){return 101;}
+	if(i<=53){return 104;}
+	if(i<=54){return 107;}
+	if(i<=55){return 111;}
+	if(i<=56){return 114;}
+	if(i<=57){return 117;}
+	if(i<=58){return 121;}
+	if(i<=59){return 124;}
+	if(i<=60){return 127;}
+	if(i<=61){return 131;}
+	if(i<=62){return 134;}
+	if(i<=63){return 137;}
+	if(i<=64){return 141;}
+	if(i<=65){return 144;}
+	if(i<=66){return 147;}
+	if(i<=67){return 150;}
+	if(i<=68){return 154;}
+	if(i<=69){return 157;}
+	if(i<=70){return 160;}
+	if(i<=71){return 163;}
+	if(i<=72){return 167;}
+	if(i<=73){return 170;}
+	if(i<=74){return 173;}
+	if(i<=75){return 176;}
+	if(i<=76){return 179;}
+	if(i<=77){return 182;}
+	if(i<=78){return 185;}
+	if(i<=79){return 188;}
+	if(i<=80){return 191;}
+	if(i<=81){return 194;}
+	if(i<=82){return 197;}
+	if(i<=83){return 200;}
+	if(i<=84){return 202;}
+	if(i<=85){return 205;}
+	if(i<=86){return 208;}
+	if(i<=87){return 210;}
+	if(i<=88){return 213;}
+	if(i<=89){return 215;}
+	if(i<=90){return 217;}
+	if(i<=91){return 220;}
+	if(i<=92){return 222;}
+	if(i<=93){return 224;}
+	if(i<=94){return 226;}
+	if(i<=95){return 229;}
+	if(i<=96){return 231;}
+	if(i<=97){return 232;}
+	if(i<=98){return 234;}
+	if(i<=99){return 236;}
+	if(i<=100){return 238;}
+	if(i<=101){return 239;}
+	if(i<=102){return 241;}
+	if(i<=103){return 242;}
+	if(i<=104){return 244;}
+	if(i<=105){return 245;}
+	if(i<=106){return 246;}
+	if(i<=107){return 248;}
+	if(i<=108){return 249;}
+	if(i<=109){return 250;}
+	if(i<=110){return 251;}
+	if(i<=111){return 251;}
+	if(i<=112){return 252;}
+	if(i<=113){return 253;}
+	if(i<=114){return 253;}
+	if(i<=115){return 254;}
+	if(i<=116){return 254;}
+	if(i<=117 || i<=123){return 255;}
+	if(i<=124){return 254;}
+	if(i<=125){return 254;}
+	if(i<=126){return 253;}
+	if(i<=127){return 253;}
+	if(i<=128){return 252;}
+	if(i<=129){return 251;}
+	if(i<=130){return 251;}
+	if(i<=131){return 250;}
+	if(i<=132){return 249;}
+	if(i<=133){return 248;}
+	if(i<=134){return 246;}
+	if(i<=135){return 245;}
+	if(i<=136){return 244;}
+	if(i<=137){return 242;}
+	if(i<=138){return 241;}
+	if(i<=139){return 239;}
+	if(i<=140){return 238;}
+	if(i<=141){return 236;}
+	if(i<=142){return 234;}
+	if(i<=143){return 232;}
+	if(i<=144){return 231;}
+	if(i<=145){return 229;}
+	if(i<=146){return 226;}
+	if(i<=147){return 224;}
+	if(i<=148){return 222;}
+	if(i<=149){return 220;}
+	if(i<=150){return 217;}
+	if(i<=151){return 215;}
+	if(i<=152){return 213;}
+	if(i<=153){return 210;}
+	if(i<=154){return 208;}
+	if(i<=155){return 205;}
+	if(i<=156){return 202;}
+	if(i<=157){return 200;}
+	if(i<=158){return 197;}
+	if(i<=159){return 194;}
+	if(i<=160){return 191;}
+	if(i<=161){return 188;}
+	if(i<=162){return 185;}
+	if(i<=163){return 182;}
+	if(i<=164){return 179;}
+	if(i<=165){return 176;}
+	if(i<=166){return 173;}
+	if(i<=167){return 170;}
+	if(i<=168){return 167;}
+	if(i<=169){return 163;}
+	if(i<=170){return 160;}
+	if(i<=171){return 157;}
+	if(i<=172){return 154;}
+	if(i<=173){return 150;}
+	if(i<=174){return 147;}
+	if(i<=175){return 144;}
+	if(i<=176){return 141;}
+	if(i<=177){return 137;}
+	if(i<=178){return 134;}
+	if(i<=179){return 131;}
+	if(i<=180){return 127;}
+	if(i<=181){return 124;}
+	if(i<=182){return 121;}
+	if(i<=183){return 117;}
+	if(i<=184){return 114;}
+	if(i<=185){return 111;}
+	if(i<=186){return 107;}
+	if(i<=187){return 104;}
+	if(i<=188){return 101;}
+	if(i<=189){return 97;}
+	if(i<=190){return 94;}
+	if(i<=191){return 91;}
+	if(i<=192){return 88;}
+	if(i<=193){return 85;}
+	if(i<=194){return 81;}
+	if(i<=195){return 78;}
+	if(i<=196){return 75;}
+	if(i<=197){return 72;}
+	if(i<=198){return 69;}
+	if(i<=199){return 66;}
+	if(i<=200){return 63;}
+	if(i<=201){return 60;}
+	if(i<=202){return 58;}
+	if(i<=203){return 55;}
+	if(i<=204){return 52;}
+	if(i<=205){return 49;}
+	if(i<=206){return 47;}
+	if(i<=207){return 44;}
+	if(i<=208){return 42;}
+	if(i<=209){return 39;}
+	if(i<=210){return 37;}
+	if(i<=211){return 35;}
+	if(i<=212){return 32;}
+	if(i<=213){return 30;}
+	if(i<=214){return 28;}
+	if(i<=215){return 26;}
+	if(i<=216){return 24;}
+	if(i<=217){return 22;}
+	if(i<=218){return 20;}
+	if(i<=219){return 18;}
+	if(i<=220){return 17;}
+	if(i<=221){return 15;}
+	if(i<=222){return 13;}
+	if(i<=223){return 12;}
+	if(i<=224){return 11;}
+	if(i<=225){return 9;}
+	if(i<=226){return 8;}
+	if(i<=227){return 7;}
+	if(i<=228){return 6;}
+	if(i<=229){return 5;}
+	if(i<=230){return 4;}
+	if(i<=231){return 3;}
+	if(i<=232){return 2;}
+	if(i<=233){return 2;}
+	if(i<=234){return 1;}
+	if(i<=235){return 1;}
+	if(i> 235){return 0;}
+	return 0;
+}
+
+/*
+<display backgroundColour="0xFF242424" textColour ="0xFF000000">
+    <pixels>
+        <pixel index="0" colour="0xFF242424" />
+        <pixel index="1" colour="0xFF242424" />
+        <pixel index="2" colour="0xFF242424" />
+        <pixel index="3" colour="0xFF242424" />
+        <pixel index="4" colour="0xFF505050" />
+        <pixel index="5" colour="0xFF505050" />
+        <pixel index="6" colour="0xFF505050" />
+        <pixel index="7" colour="0xFF242424" />
+        <pixel index="8" colour="0xFF242424" />
+        <pixel index="9" colour="0xFF242424" />
+        <pixel index="10" colour="0xFF242424" />
+        <pixel index="11" colour="0xFF242424" />
+        <pixel index="12" colour="0xFF242424" />
+        <pixel index="13" colour="0xFF242424" />
+        <pixel index="14" colour="0xFF242424" />
+        <pixel index="15" colour="0xFFFF0000" />
+        <pixel index="16" colour="0xFFFF0000" />
+        <pixel index="17" colour="0xFFFF0000" />
+        <pixel index="18" colour="0xFF242424" />
+        <pixel index="19" colour="0xFF242424" />
+        <pixel index="20" colour="0xFF242424" />
+        <pixel index="21" colour="0xFF242424" />
+        <pixel index="22" colour="0xFF242424" />
+        <pixel index="23" colour="0xFFFF3A00" />
+        <pixel index="24" colour="0xFFFF3A00" />
+        <pixel index="25" colour="0xFFFF3A00" />
+        <pixel index="26" colour="0xFF242424" />
+        <pixel index="27" colour="0xFFFF8200" />
+        <pixel index="28" colour="0xFFFF8200" />
+        <pixel index="29" colour="0xFFFF8200" />
+        <pixel index="30" colour="0xFFFF1600" />
+        <pixel index="31" colour="0xFFFF1600" />
+        <pixel index="32" colour="0xFFFF1600" />
+        <pixel index="33" colour="0xFF242424" />
+        <pixel index="34" colour="0xFF242424" />
+        <pixel index="35" colour="0xFF242424" />
+        <pixel index="36" colour="0xFF242424" />
+        <pixel index="37" colour="0xFF242424" />
+        <pixel index="38" colour="0xFFFF4800" />
+        <pixel index="39" colour="0xFFFF4800" />
+        <pixel index="40" colour="0xFFFF4800" />
+        <pixel index="41" colour="0xFF242424" />
+        <pixel index="42" colour="0xFFFF9000" />
+        <pixel index="43" colour="0xFFFF9000" />
+        <pixel index="44" colour="0xFFFF9000" />
+        <pixel index="45" colour="0xFFFF4F00" />
+        <pixel index="46" colour="0xFFFF4F00" />
+        <pixel index="47" colour="0xFFFF4F00" />
+        <pixel index="48" colour="0xFF242424" />
+        <pixel index="49" colour="0xFF242424" />
+        <pixel index="50" colour="0xFF242424" />
+        <pixel index="51" colour="0xFF242424" />
+        <pixel index="52" colour="0xFF242424" />
+        <pixel index="53" colour="0xFFFF6500" />
+        <pixel index="54" colour="0xFFFF6500" />
+        <pixel index="55" colour="0xFFFF6500" />
+        <pixel index="56" colour="0xFF242424" />
+        <pixel index="57" colour="0xFFFFB400" />
+        <pixel index="58" colour="0xFFFFB400" />
+        <pixel index="59" colour="0xFFFFB400" />
+        <pixel index="60" colour="0xFFFF7300" />
+        <pixel index="61" colour="0xFFFF7300" />
+        <pixel index="62" colour="0xFFFF7300" />
+        <pixel index="63" colour="0xFF242424" />
+        <pixel index="64" colour="0xFF242424" />
+        <pixel index="65" colour="0xFF242424" />
+        <pixel index="66" colour="0xFF242424" />
+        <pixel index="67" colour="0xFF242424" />
+        <pixel index="68" colour="0xFFFF7300" />
+        <pixel index="69" colour="0xFFFF7300" />
+        <pixel index="70" colour="0xFFFF7300" />
+        <pixel index="71" colour="0xFF242424" />
+        <pixel index="72" colour="0xFFFFCA00" />
+        <pixel index="73" colour="0xFFFFCA00" />
+        <pixel index="74" colour="0xFFFFCA00" />
+        <pixel index="75" colour="0xFFFF9800" />
+        <pixel index="76" colour="0xFFFF9800" />
+        <pixel index="77" colour="0xFFFF9800" />
+        <pixel index="78" colour="0xFF242424" />
+        <pixel index="79" colour="0xFF242424" />
+        <pixel index="80" colour="0xFF242424" />
+        <pixel index="81" colour="0xFF242424" />
+        <pixel index="82" colour="0xFF242424" />
+        <pixel index="83" colour="0xFFFF8900" />
+        <pixel index="84" colour="0xFFFF8900" />
+        <pixel index="85" colour="0xFFFF8900" />
+        <pixel index="86" colour="0xFF242424" />
+        <pixel index="87" colour="0xFFFFEE00" />
+        <pixel index="88" colour="0xFFFFEE00" />
+        <pixel index="89" colour="0xFFFFEE00" />
+        <pixel index="90" colour="0xFFFFB400" />
+        <pixel index="91" colour="0xFFFFB400" />
+        <pixel index="92" colour="0xFFFFB400" />
+        <pixel index="93" colour="0xFF242424" />
+        <pixel index="94" colour="0xFF242424" />
+        <pixel index="95" colour="0xFF242424" />
+        <pixel index="96" colour="0xFF242424" />
+        <pixel index="97" colour="0xFF242424" />
+        <pixel index="98" colour="0xFFFF9800" />
+        <pixel index="99" colour="0xFFFF9800" />
+        <pixel index="100" colour="0xFFFF9800" />
+        <pixel index="101" colour="0xFF242424" />
+        <pixel index="102" colour="0xFFFAFF00" />
+        <pixel index="103" colour="0xFFFAFF00" />
+        <pixel index="104" colour="0xFFFAFF00" />
+        <pixel index="105" colour="0xFF242424" />
+        <pixel index="106" colour="0xFF242424" />
+        <pixel index="107" colour="0xFF242424" />
+        <pixel index="108" colour="0xFF242424" />
+        <pixel index="109" colour="0xFF242424" />
+        <pixel index="110" colour="0xFF242424" />
+        <pixel index="111" colour="0xFF242424" />
+        <pixel index="112" colour="0xFF242424" />
+        <pixel index="113" colour="0xFFFF9F00" />
+        <pixel index="114" colour="0xFFFF9F00" />
+        <pixel index="115" colour="0xFFFF9F00" />
+        <pixel index="116" colour="0xFF242424" />
+        <pixel index="117" colour="0xFF242424" />
+        <pixel index="118" colour="0xFF242424" />
+        <pixel index="119" colour="0xFF242424" />
+        <pixel index="120" colour="0xFF242424" />
+        <pixel index="121" colour="0xFF242424" />
+        <pixel index="122" colour="0xFF242424" />
+        <pixel index="123" colour="0xFF242424" />
+        <pixel index="124" colour="0xFF242424" />
+        <pixel index="125" colour="0xFF242424" />
+        <pixel index="126" colour="0xFF242424" />
+        <pixel index="127" colour="0xFF242424" />
+        <pixel index="128" colour="0xFFFFA600" />
+        <pixel index="129" colour="0xFFFFA600" />
+        <pixel index="130" colour="0xFFFFA600" />
+        <pixel index="131" colour="0xFF242424" />
+        <pixel index="132" colour="0xFF242424" />
+        <pixel index="133" colour="0xFF242424" />
+        <pixel index="134" colour="0xFF242424" />
+        <pixel index="135" colour="0xFF242424" />
+        <pixel index="136" colour="0xFF242424" />
+        <pixel index="137" colour="0xFF242424" />
+        <pixel index="138" colour="0xFF242424" />
+        <pixel index="139" colour="0xFF242424" />
+        <pixel index="140" colour="0xFF242424" />
+        <pixel index="141" colour="0xFF242424" />
+        <pixel index="142" colour="0xFF242424" />
+        <pixel index="143" colour="0xFFFFBC00" />
+        <pixel index="144" colour="0xFFFFBC00" />
+        <pixel index="145" colour="0xFFFFBC00" />
+        <pixel index="146" colour="0xFF242424" />
+        <pixel index="147" colour="0xFF242424" />
+        <pixel index="148" colour="0xFF242424" />
+        <pixel index="149" colour="0xFF242424" />
+        <pixel index="150" colour="0xFF242424" />
+        <pixel index="151" colour="0xFF242424" />
+        <pixel index="152" colour="0xFF242424" />
+        <pixel index="153" colour="0xFF242424" />
+        <pixel index="154" colour="0xFF242424" />
+        <pixel index="155" colour="0xFF242424" />
+        <pixel index="156" colour="0xFF242424" />
+        <pixel index="157" colour="0xFF242424" />
+        <pixel index="158" colour="0xFFFFD100" />
+        <pixel index="159" colour="0xFFFFD100" />
+        <pixel index="160" colour="0xFFFFD100" />
+        <pixel index="161" colour="0xFF242424" />
+        <pixel index="162" colour="0xFF242424" />
+        <pixel index="163" colour="0xFF242424" />
+        <pixel index="164" colour="0xFF242424" />
+        <pixel index="165" colour="0xFF242424" />
+        <pixel index="166" colour="0xFF242424" />
+        <pixel index="167" colour="0xFF242424" />
+        <pixel index="168" colour="0xFF242424" />
+        <pixel index="169" colour="0xFF242424" />
+        <pixel index="170" colour="0xFF242424" />
+        <pixel index="171" colour="0xFF242424" />
+        <pixel index="172" colour="0xFF242424" />
+        <pixel index="173" colour="0xFFFFE000" />
+        <pixel index="174" colour="0xFFFFE000" />
+        <pixel index="175" colour="0xFFFFE000" />
+        <pixel index="176" colour="0xFF242424" />
+        <pixel index="177" colour="0xFF242424" />
+        <pixel index="178" colour="0xFF242424" />
+        <pixel index="179" colour="0xFF242424" />
+        <pixel index="180" colour="0xFF242424" />
+        <pixel index="181" colour="0xFF242424" />
+        <pixel index="182" colour="0xFF242424" />
+        <pixel index="183" colour="0xFF242424" />
+        <pixel index="184" colour="0xFF242424" />
+        <pixel index="185" colour="0xFF242424" />
+        <pixel index="186" colour="0xFF242424" />
+        <pixel index="187" colour="0xFF242424" />
+        <pixel index="188" colour="0xFF242424" />
+        <pixel index="189" colour="0xFF242424" />
+        <pixel index="190" colour="0xFF242424" />
+        <pixel index="191" colour="0xFF242424" />
+        <pixel index="192" colour="0xFF242424" />
+        <pixel index="193" colour="0xFF242424" />
+        <pixel index="194" colour="0xFF242424" />
+        <pixel index="195" colour="0xFF242424" />
+        <pixel index="196" colour="0xFF242424" />
+        <pixel index="197" colour="0xFF242424" />
+        <pixel index="198" colour="0xFF242424" />
+        <pixel index="199" colour="0xFF242424" />
+        <pixel index="200" colour="0xFF242424" />
+        <pixel index="201" colour="0xFF242424" />
+        <pixel index="202" colour="0xFF242424" />
+        <pixel index="203" colour="0xFF242424" />
+        <pixel index="204" colour="0xFF242424" />
+        <pixel index="205" colour="0xFF242424" />
+        <pixel index="206" colour="0xFF242424" />
+        <pixel index="207" colour="0xFF242424" />
+        <pixel index="208" colour="0xFF242424" />
+        <pixel index="209" colour="0xFF242424" />
+        <pixel index="210" colour="0xFF242424" />
+        <pixel index="211" colour="0xFF242424" />
+        <pixel index="212" colour="0xFF242424" />
+        <pixel index="213" colour="0xFF242424" />
+        <pixel index="214" colour="0xFF1EFF0C" />
+        <pixel index="215" colour="0xFF1EFF0C" />
+        <pixel index="216" colour="0xFF1EFF0C" />
+        <pixel index="217" colour="0xFF242424" />
+        <pixel index="218" colour="0xFF242424" />
+        <pixel index="219" colour="0xFF242424" />
+        <pixel index="220" colour="0xFF242424" />
+        <pixel index="221" colour="0xFF242424" />
+        <pixel index="222" colour="0xFF242424" />
+        <pixel index="223" colour="0xFF242424" />
+        <pixel index="224" colour="0xFF242424" />
+    </pixels>
+</display>
+*/
