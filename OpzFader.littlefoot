@@ -1,3 +1,9 @@
+/*
+<metadata description="A project to enable ROLI Blocks to act as a multi-channel fader for the Teenage Engineering's OP-Z sequencer.">
+    <groups></groups>
+    <variables></variables>
+</metadata>
+*/
 
 int level1;
 int level2;
